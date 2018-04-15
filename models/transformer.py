@@ -160,7 +160,9 @@ class Transformer(t2t_model.T2TModel):
       encoder_output, encoder_decoder_attention_bias = (None, None)
 
     targets = features["targets"]
+    # small (105,32,1,256)
     targets = common_layers.flatten4d3d(targets)
+    # small (105,32,256)
 
     decoder_input, decoder_self_attention_bias = transformer_prepare_decoder(
         targets, hparams, features=features)
@@ -770,6 +772,7 @@ def transformer_decoder(decoder_input,
     y: a Tensors
   """
   x = decoder_input
+  # small (105,32,256)
   attention_dropout_broadcast_dims = (
       common_layers.comma_separated_string_to_integer_list(
           getattr(hparams, "attention_dropout_broadcast_dims", "")))
