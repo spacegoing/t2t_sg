@@ -774,32 +774,44 @@ def transformer_decoder(decoder_input,
       common_layers.comma_separated_string_to_integer_list(
           getattr(hparams, "attention_dropout_broadcast_dims", "")))
   with tf.variable_scope(name):
+    # name = "decoder"
     # hp small hp.num_hidden_layers 2
     for layer in xrange(hparams.num_decoder_layers or
                         hparams.num_hidden_layers):
       layer_name = "layer_%d" % layer
       layer_cache = cache[layer_name] if cache is not None else None
+      # cache is None
       with tf.variable_scope(layer_name):
         with tf.variable_scope("self_attention"):
           import ipdb; ipdb.set_trace()
           y = common_attention.multihead_attention(
               common_layers.layer_preprocess(x, hparams),
+              # normalize(x)
               None,
               decoder_self_attention_bias,
-              # hp smaller hidden_size=256
-              # key value output depth are all 256
+              # (1,1,?,?)
               hparams.attention_key_channels or hparams.hidden_size,
               hparams.attention_value_channels or hparams.hidden_size,
               hparams.hidden_size,
+              # hp smaller hidden_size=256
+              # [key,value,output]_depth are all 256
               hparams.num_heads,
+              # num_heads 4
               hparams.attention_dropout,
+              # 0.1
               attention_type=hparams.self_attention_type,
+              # 'dot_product'
               save_weights_to=save_weights_to,
+              # {}
               max_relative_position=hparams.max_relative_position,
+              # 0
               cache=layer_cache,
               make_image_summary=make_image_summary,
+              # True
               dropout_broadcast_dims=attention_dropout_broadcast_dims)
+              # []
           x = common_layers.layer_postprocess(x, y, hparams)
+          # x + dropout(y)
         if encoder_output is not None:
           with tf.variable_scope("encdec_attention"):
             # TODO(llion): Add caching.

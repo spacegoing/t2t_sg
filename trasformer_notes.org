@@ -3,10 +3,11 @@
 ** Function Flow
 
 
-
 ** Decoder Notes
+
 - ~has_input=False~, no encoder
-- 
+
+
 *** Pre & Post Process
 
 For example, if sequence=="dna", then the output is
@@ -20,3 +21,13 @@ hparams.layer_postprocess_sequence = "da"
 #+END_SRC
 
 
+** Encoder-Decoder Diffs
+
+*** self-attention
+
+No computational differences
+
+- layer name is different (same name with format string /
+  variable)
+- bias is different
+- decoder has layer cache but currently un-implemented
