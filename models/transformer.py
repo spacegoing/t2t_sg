@@ -774,16 +774,20 @@ def transformer_decoder(decoder_input,
       common_layers.comma_separated_string_to_integer_list(
           getattr(hparams, "attention_dropout_broadcast_dims", "")))
   with tf.variable_scope(name):
+    # hp small hp.num_hidden_layers 2
     for layer in xrange(hparams.num_decoder_layers or
                         hparams.num_hidden_layers):
       layer_name = "layer_%d" % layer
       layer_cache = cache[layer_name] if cache is not None else None
       with tf.variable_scope(layer_name):
         with tf.variable_scope("self_attention"):
+          import ipdb; ipdb.set_trace()
           y = common_attention.multihead_attention(
               common_layers.layer_preprocess(x, hparams),
               None,
               decoder_self_attention_bias,
+              # hp smaller hidden_size=256
+              # key value output depth are all 256
               hparams.attention_key_channels or hparams.hidden_size,
               hparams.attention_value_channels or hparams.hidden_size,
               hparams.hidden_size,

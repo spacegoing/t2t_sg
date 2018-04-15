@@ -1,0 +1,22 @@
+* Transformer Small
+
+** Function Flow
+
+
+
+** Decoder Notes
+- ~has_input=False~, no encoder
+- 
+*** Pre & Post Process
+
+For example, if sequence=="dna", then the output is
+~previous_value + normalize(dropout(x))~
+
+#+BEGIN_SRC python
+hparams.layer_preprocess_sequence = "n"
+# normalize(x)
+hparams.layer_postprocess_sequence = "da"
+# previous_value + dropout(x)
+#+END_SRC
+
+
