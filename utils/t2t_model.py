@@ -130,6 +130,8 @@ class T2TModel(base.Layer):
       return True
 
   def call(self, features):
+    # sg: T2TModel subclass layers.base in which __call__ is overide
+    # this call() implements abstract method in layers.base.call()
     tf.get_variable_scope().set_custom_getter(common_layers.bfloat16_var_getter
                                               if self.hparams.activation_dtype
                                               == "bfloat16" else None)
@@ -138,6 +140,7 @@ class T2TModel(base.Layer):
     with self._eager_var_store.as_default():
       self._fill_problem_hparams_features(features)
       sharded_features = self._shard_features(features)
+      # sg: here calls model_fn_shared (which calls model_fn)
       sharded_logits, losses = self.model_fn_sharded(sharded_features)
       if isinstance(sharded_logits, dict):
         concat_logits = {}
@@ -193,6 +196,7 @@ class T2TModel(base.Layer):
           } for loss in sharded_losses])
           losses.update(training_loss_dict)
     else:
+      # sg: here calls model_fn, which calls self.body()
       sharded_logits, sharded_losses = dp(self.model_fn, datashard_to_features)
       if isinstance(sharded_logits[0], dict):
         temp_dict = {k: [] for k, _ in six.iteritems(sharded_logits[0])}
@@ -228,6 +232,9 @@ class T2TModel(base.Layer):
       log_info("Building model body")
       body_out = self.body(transformed_features)
     output, losses = self._normalize_body_output(body_out)
+    # sg: _normalize_body_output():
+    # output, losses = body_out if body_out is tuple
+    # otherwise it will be a dict and contains {"extra":} as logits
 
     if "training" in losses:
       log_info("Skipping T2TModel top and loss because training loss "
@@ -924,6 +931,7 @@ class T2TModel(base.Layer):
         mode,
         data_parallelism=data_parallelism,
         decode_hparams=decode_hparams)
+    # sg: cls is T2TModel type
 
     # PREDICT mode
     if mode == tf.estimator.ModeKeys.PREDICT:

@@ -637,6 +637,8 @@ class Problem(object):
     """Return input_fn wrapped for Estimator."""
 
     def estimator_input_fn(params, config):
+      # sg:  It call input_fn which returns
+      # return features, features["targets"]
       return self.input_fn(
           mode,
           hparams,
