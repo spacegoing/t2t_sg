@@ -783,7 +783,6 @@ def transformer_decoder(decoder_input,
       # cache is None
       with tf.variable_scope(layer_name):
         with tf.variable_scope("self_attention"):
-          import ipdb; ipdb.set_trace()
           y = common_attention.multihead_attention(
               common_layers.layer_preprocess(x, hparams),
               # normalize(x)
