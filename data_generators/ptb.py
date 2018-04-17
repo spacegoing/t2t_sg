@@ -114,6 +114,8 @@ def _maybe_download_corpus(tmp_dir, vocab_type):
 
 @registry.register_problem
 class LanguagemodelPtb10k(text_problems.Text2SelfProblem):
+  # sg: Text2SelfProblem set has_input returns False
+  # generate_samples should not return "inputs" key
   """PTB, 10k vocab."""
 
   @property
@@ -160,6 +162,8 @@ class LanguagemodelPtb10k(text_problems.Text2SelfProblem):
       with tf.gfile.GFile(filepath, "r") as f:
         for line in f:
           line = " ".join(line.replace("\n", " %s " % EOS).split())
+          # sg: this problem does not contain "inputs" key, so when using
+          # transfomer only decode() is used
           yield {"targets": line}
 
     return _generate_samples()

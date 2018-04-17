@@ -139,15 +139,20 @@ class Transformer(t2t_model.T2TModel):
   def body(self, features):
     """Transformer main model_fn.
 
+    sg: "inputs" and "targets", each of which is a batched 4-D Tensor (e.g. of
+    shape [batch_size, sequence_length, 1, 1] for text input or [batch_size,
+    height, width, 3] for image input). batch_size and sequence_length are de
+    termined dynamicly by Problem.input_fn() see sg: comments there
+
     Args:
       features: Map of features to the model. Should contain the following:
           "inputs": Transformer inputs [batch_size, input_length, hidden_dim]
           "tragets": Target decoder outputs.
               [batch_size, decoder_length, hidden_dim]
           "target_space_id"
-
     Returns:
       Final decoder representation. [batch_size, decoder_length, hidden_dim]
+
     """
     hparams = self._hparams
 
@@ -174,6 +179,7 @@ class Transformer(t2t_model.T2TModel):
         decoder_self_attention_bias,
         hparams,
         nonpadding=features_to_nonpadding(features, "targets"))
+    # (105,32,1,256)
 
     expected_attentions = features.get("expected_attentions")
     if expected_attentions is not None:

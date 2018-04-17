@@ -800,6 +800,7 @@ class Problem(object):
           # Here  batch_size really means examples per datashard.
           batching_scheme["batch_sizes"] = [hparams.batch_size]
           batching_scheme["boundaries"] = []
+        # sg: GPU batch size / buckets are generated here
         dataset = data_reader.bucket_by_sequence_length(
             dataset, data_reader.example_length, batching_scheme["boundaries"],
             batching_scheme["batch_sizes"])

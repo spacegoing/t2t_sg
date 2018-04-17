@@ -1,5 +1,95 @@
 * Transformer Small
 
+** Data Generation
+
+*** Problems base classes
+
+- blog: https://cloud.google.com/blog/big-data/2018/02/cloud-poetry-training-and-hyperparameter-tuning-custom-text-models-on-cloud-ml-engine
+
+1. Models that use a sequence as an input, but are essentially
+   classifiers or regressors—a spam filter or sentiment
+   identifier are canonical examples of such a model.
+2. Models that take a single entity as input but produce a text
+   sequence as output—image captioning is an example of such a
+   model, since given an image, the model needs to produce a
+   sequence of words that describes the image.
+3. Models that take sequences as input and produce sequences as
+   outputs. Language translation, question-answering, and text
+   summarization are all examples of this third type.
+ 
+ 
+*** Registry Gotcha
+
+- github: https://github.com/tensorflow/tensor2tensor/blob/master/docs/new_problem.md
+- blog: https://cloud.google.com/blog/big-data/2018/02/cloud-poetry-training-and-hyperparameter-tuning-custom-text-models-on-cloud-ml-engine
+- tutorial: https://github.com/GoogleCloudPlatform/training-data-analyst/blob/master/courses/machine_learning/deepdive/09_sequence/poetry.ipynb
+
+You can test data generation of your a problem in your own
+project with:
+
+#+BEGIN_SRC bash
+PROBLEM=poetry_line_problem
+DATA_DIR=$HOME/t2t_data
+TMP_DIR=/tmp/t2t_datagen
+mkdir -p $DATA_DIR $TMP_DIR
+
+t2t-datagen \
+  --t2t_usr_dir=$PATH_TO_YOUR_PROBLEM_DIR \
+  --data_dir=$DATA_DIR \
+  --tmp_dir=$TMP_DIR \
+  --problem=$PROBLEM
+#+END_SRC
+
+#+BEGIN_SRC python
+@registry.register_problem
+class PoetryLineProblem(text_problems.Text2TextProblem):
+    pass
+#+END_SRC
+
+Where:
+- The Python Filename is ~snake_case~ of problem name
+- ~PROBLEM~ is the name of the class that was registered with
+  ~@registry.register_problem()~, but converted from ~CamelCase~ to
+  ~snake_case~
+
+
+
+** Input Pipeline
+
+*** batch generation
+
+https://github.com/tensorflow/tensor2tensor/blob/master/docs/overview.md#batching
+
+Variable length Problems are bucketed by sequence length and then
+batched out of those buckets. This significantly improves
+performance over a naive batching scheme for variable length
+sequences because each example in a batch must be padded to match
+the example with the maximum length in the batch.
+
+**** Implementation
+
+- In ~data_generators/problems.py~ ~Problem.input_fn()~
+
+#+BEGIN_SRC python
+# sg: GPU batch size / buckets are generated here
+dataset = data_reader.bucket_by_sequence_length(
+    dataset, data_reader.example_length, batching_scheme["boundaries"],
+    batching_scheme["batch_sizes"])
+# bucket_by_sequence_length using tf.contrib.data.group_by_window()
+#+END_SRC
+
+https://www.tensorflow.org/api_docs/python/tf/contrib/data/group_by_window
+
+A transformation that groups windows of elements by key and
+reduces them.
+
+This transformation maps each consecutive element in a dataset to
+a key using key_func and groups the elements by key. It then
+applies reduce_func to at most window_size_func(key) elements
+matching the same key. All execpt the final window for each key
+will contain window_size_func(key) elements; the final window may
+be smaller.
+
 ** Function Flow
 
 

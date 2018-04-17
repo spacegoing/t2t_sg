@@ -301,6 +301,10 @@ class T2TModel(base.Layer):
     Compute label logits for one shard as a function of the transformed
     features.
 
+    sg: "inputs" and "targets", each of which is a batched 4-D Tensor (e.g. of
+    shape [batch_size, sequence_length, 1, 1] for text input or [batch_size,
+    height, width, 3] for image input).
+
     Args:
       features: A dictionary of key to Tensor.  Each Tensor has shape
          [batch_size, ?, ?, hidden_size].
