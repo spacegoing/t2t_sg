@@ -90,8 +90,77 @@ matching the same key. All execpt the final window for each key
 will contain window_size_func(key) elements; the final window may
 be smaller.
 
+
+** T2TModel
+
+~top()~ ~body()~ ~bottom()~ ~loss()~
+
+From https://github.com/tensorflow/tensor2tensor/blob/master/docs/overview.md#building-the-model
+
+#+BEGIN_QUOTE
+At this point, the input features typically have ~"inputs"~ and ~"targets"~,
+each of which is a batched 4-D Tensor (e.g. of shape ~[batch_size,
+sequence_length, 1, 1]~ for text input or ~[batch_size, height, width, 3]~ for
+image input).
+#+END_QUOTE
+
+#+BEGIN_QUOTE
+The Estimator model function is created by ~T2TModel.estimator_model_fn~, which
+may be overridden in its entirety by subclasses if desired. Typically,
+subclasses only override ~T2TModel.body~.
+#+END_QUOTE
+
+- ~estimator_model_fn~ is a ~@classmethod~ function, which is
+  used as an override of the original constructor. This acts like
+  a factory function return subclass instances of ~T2TModel~ class
+
+#+BEGIN_QUOTE
+The model function constructs a ~T2TModel~, calls it, and then calls
+~T2TModel.{estimator_spec_train, estimator_spec_eval, estimator_spec_predict}~
+depending on the mode.
+
+A call of a ~T2TModel~ internally calls ~bottom~, ~body~, ~top~, and ~loss~, all
+of which can be overridden by subclasses (typically only ~body~ is).
+
+The default implementations of ~bottom~, ~top~, and ~loss~ depend on the
+~Modality~ specified for the input and target features (e.g.
+~SymbolModality.bottom~ embeds integer tokens and ~SymbolModality.loss~ is
+~softmax_cross_entropy~).
+#+END_QUOTE
+
+
 ** Function Flow
 
+
+
+~bottom~, ~top~, and ~loss~ are specified in ~hparams.problems~
+
+1. features flow into model: t2t_model.py
+   ~T2TModel.estimator_model_fn()~ calls ~logits, losses_dict =
+   model(features)~ 
+2. ~model(features)~ calls ~Layers.base.Layer.__call__()~ which
+   is overridden by ~T2TModel.call()~ 
+3. ~T2TModel.call()~ calls ~model_fn_sharded(sharded_features)~
+4. ~model_fn_sharded()~ calls
+   ~model_fn(datashard_to_features)~
+5. ~model_fn()~ calls ~bottom()~, ~body()~ ~top()~, and ~loss()~
+   in order
+   - ~body()~ can return ~losses~ or not 
+     - If return, then it must contains ~(logits, losses)~ in a
+       ~tuple~ then training will skip ~top()~ and ~loss()~
+       functions. This means ~body()~ need to implement ~top()~
+       and ~loss()~ by itself
+     - Otherwise, it simply return ~logits~ as output. Then
+       ~model_fn()~ will use ~top()~ to calculate ~logits~ and
+       ~loss()~ to calculate ~loss()~
+
+
+
+
+
+
+
+loss
 
 ** Decoder Notes
 
