@@ -130,8 +130,9 @@ class T2TModel(base.Layer):
       return True
 
   def call(self, features):
-    # sg: T2TModel subclass layers.base in which __call__ is overide
-    # this call() implements abstract method in layers.base.call()
+    # sg: T2TModel subclass tensorflow.python.layers.base.Layer. Will call
+    # `__call__()`. this call() implements abstract method in
+    # layers.base.call()
     tf.get_variable_scope().set_custom_getter(common_layers.bfloat16_var_getter
                                               if self.hparams.activation_dtype
                                               == "bfloat16" else None)
@@ -910,6 +911,8 @@ class T2TModel(base.Layer):
                          use_tpu=False):
     """Model fn for Estimator.
 
+    sg: Factory Function. Return subclass instances of T2TModel
+
     Args:
       hparams: HParams, model hyperparameters
       features: dict<str name, Tensor feature>
@@ -937,6 +940,12 @@ class T2TModel(base.Layer):
         decode_hparams=decode_hparams)
     # sg: cls is T2TModel type
 
+    # sg: problem_hparams is not passed into __init__
+    #     Thus it will use problems attribute in hparams as default
+    #     if not problem_hparams and hasattr(hparams, "problems"):
+    #       problem_hparams = hparams.problems[0]
+    #     self._problem_hparams = problem_hparams
+
     # PREDICT mode
     if mode == tf.estimator.ModeKeys.PREDICT:
       assert not use_tpu
@@ -947,6 +956,11 @@ class T2TModel(base.Layer):
       logits, losses_dict = model.eval_autoregressive(features)
     else:
       logits, losses_dict = model(features)  # pylint: disable=not-callable
+
+      # sg: model here is a subclass of T2TModel which is a subclass of
+      # tensorflow.python.layers.base.Layer This line will call `__call__()`
+      # method in base class. which will
+
 
     # Set known shapes
     if use_tpu:

@@ -65,6 +65,7 @@ class SymbolModality(modality.Modality):
 
   def _get_weights(self, hidden_dim=None):
     """Create or get concatenated embedding or softmax variable.
+    sg: embedding goes from here
 
     Args:
       hidden_dim: dim of the variable. Defaults to self._body_input_depth
@@ -74,11 +75,14 @@ class SymbolModality(modality.Modality):
     """
     if hidden_dim is None:
       hidden_dim = self._body_input_depth
+      # sg: ptb small hidden_dim=256
     num_shards = self._model_hparams.symbol_modality_num_shards
+    # sg: ptb small num_shards=16
     shards = []
     for i in xrange(num_shards):
       shard_size = (self._vocab_size // num_shards) + (
           1 if i < self._vocab_size % num_shards else 0)
+      # sg: ptb small _vocab_size=10000 shard_size=625
       var_name = "weights_%d" % i
       shards.append(
           tf.get_variable(
@@ -88,12 +92,19 @@ class SymbolModality(modality.Modality):
       ret = shards[0]
     else:
       ret = tf.concat(shards, 0)
+      # sg: ptb small ret (10000=625*16, 256)
     # Convert ret to tensor.
     if not context.in_eager_mode():
       ret = eu.convert_gradient_to_tensor(ret)
     return ret
+    # sg: small ptb (10000, 256)
 
   def bottom_simple(self, x, name, reuse):
+    """
+    sg: whole section
+    Args:
+      x: [batch_size, sequence_length, 1]. for small ptb (105, 32, 1)
+    """
     with tf.variable_scope(name, reuse=reuse):
       # Ensure the inputs are 3-D
       if len(x.get_shape()) == 4:
@@ -102,13 +113,36 @@ class SymbolModality(modality.Modality):
         x = tf.expand_dims(x, axis=-1)
 
       var = self._get_weights()
+      # sg: small ptb (10000, 256)
       x = common_layers.dropout_no_scaling(
           x, 1.0 - self._model_hparams.symbol_dropout)
+      # sg: (105, 32, 1)
       ret = common_layers.gather(var, x)
+      # sg: (105, 32, 1) -> (105,32,1,256) sg: basic idea: fetch embedding from
+      # `var` (256 entries per vocab) into `ret` according to vocab id mat `x`
+
+      """sg: Error (version different?) in official doc
+      The following is from tf r1.6 docstring:
+      Gather slices from `params` according to `indices`.
+
+      `indices` must be an integer tensor of any dimension (usually 0-D or 1-D).
+      Produces an output tensor with shape `indices.shape + params.shape[1:]` where:
+
+      ```python
+          # Scalar indices
+          output[:, ..., :] = params[indices, :, ... :]
+
+          # Vector indices
+          output[i, :, ..., :] = params[indices[i], :, ... :]
+
+          # Higher rank indices
+          output[i, ..., j, :, ... :] = params[indices[i, ..., j], :, ..., :]
+      ```
+      """
       if self._model_hparams.multiply_embedding_mode == "sqrt_depth":
         ret *= self._body_input_depth**0.5
       ret *= tf.expand_dims(tf.to_float(tf.not_equal(x, 0)), -1)
-      return ret
+      return ret # sg: (105,32,1,256)
 
   def bottom(self, x):
     self._bottom_was_called = True
@@ -146,8 +180,11 @@ class SymbolModality(modality.Modality):
       reuse = False
 
     with tf.variable_scope(scope_name, reuse=reuse):
+      # sg: body_output (105,32,1,256) (batch_size, sequence length)
       body_output_shape = common_layers.shape_list(body_output)
       var = self._get_weights(body_output_shape[-1])
+      # sg: small ptb (10000, 256)
+      import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
       if (self._model_hparams.factored_logits and
           self._model_hparams.mode == tf.estimator.ModeKeys.TRAIN):
         # insert channels dimension
@@ -155,7 +192,9 @@ class SymbolModality(modality.Modality):
         return common_layers.FactoredTensor(body_output, var)
       else:
         body_output = tf.reshape(body_output, [-1, body_output_shape[-1]])
+        # sg: body_output (3360=105*32,256)
         logits = tf.matmul(body_output, var, transpose_b=True)
+        # sg: (3360=105*32,10000)
         if (common_layers.is_on_tpu() and
             self._model_hparams.mode == tf.estimator.ModeKeys.TRAIN):
           # TPU does not react kindly to extra dimensions.
@@ -164,6 +203,8 @@ class SymbolModality(modality.Modality):
         else:
           return tf.reshape(
               logits, body_output_shape[:-1] + [1, self._vocab_size])
+        # body_output_shape[:-1] (105, 32, 1)
+        # logits (105,32,1,1,10000)
 
 
 @registry.register_symbol_modality("ctc")
