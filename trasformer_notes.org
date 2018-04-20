@@ -2,6 +2,25 @@
 
 ** Data Generation
 
+*** vocabulary & tokenization
+
+vocab_type: (~text_problems.py vocab_type()~)
+
+#+BEGIN_QUOTE markdown
+`VocabType`s:
+  * `SUBWORD`: `SubwordTextEncoder`, an invertible wordpiece vocabulary.
+    Must provide `self.approx_vocab_size`. Generates the vocabulary based on
+    the training data. To limit the number of samples the vocab generation
+    looks at, override `self.max_samples_for_vocab`. Recommended and
+    default.
+  * `CHARACTER`: `ByteTextEncoder`, encode raw bytes.
+  * `TOKEN`: `TokenTextEncoder`, vocabulary based on a file. Must provide a
+    vocabulary file yourself (`TokenTextEncoder.store_to_file`) because one
+    will not be generated for you. The vocab file should be stored in
+    `data_dir/` with the name specified by `self.vocab_filename`.
+#+END_QUOTE
+
+
 *** Problems base classes
 
 - blog: https://cloud.google.com/blog/big-data/2018/02/cloud-poetry-training-and-hyperparameter-tuning-custom-text-models-on-cloud-ml-engine
@@ -17,7 +36,37 @@
    outputs. Language translation, question-answering, and text
    summarization are all examples of this third type.
  
- 
+
+*** Modality (Not Interfaces)
+
+In ~SubclassProblem~ ~def hparams()~:
+(~text_problems.py~ ~Text2TextProblem~ as an example)
+
+#+BEGIN_SRC python
+  def hparams(self, defaults, unused_model_hparams):
+    p = defaults
+    p.stop_at_eos = int(True)
+
+    if self.has_inputs:
+      source_vocab_size = self._encoders["inputs"].vocab_size
+      p.input_modality = {
+          "inputs": (registry.Modalities.SYMBOL, source_vocab_size)
+      }
+    target_vocab_size = self._encoders["targets"].vocab_size
+    p.target_modality = (registry.Modalities.SYMBOL, target_vocab_size)
+    if self.vocab_type == VocabType.CHARACTER:
+      p.loss_multiplier = 2.0
+
+    if self.packed_length:
+      identity = (registry.Modalities.GENERIC, None)
+      if self.has_inputs:
+        p.input_modality["inputs_segmentation"] = identity
+        p.input_modality["inputs_position"] = identity
+      p.input_modality["targets_segmentation"] = identity
+      p.input_modality["targets_position"] = identity
+#+END_SRC
+
+
 *** Registry Gotcha
 
 - github: https://github.com/tensorflow/tensor2tensor/blob/master/docs/new_problem.md
@@ -51,6 +100,10 @@ Where:
 - ~PROBLEM~ is the name of the class that was registered with
   ~@registry.register_problem()~, but converted from ~CamelCase~ to
   ~snake_case~
+
+
+*** MISC
+
 
 
 
@@ -95,6 +148,10 @@ be smaller.
 
 ~top()~ ~body()~ ~bottom()~ ~loss()~
 
+- ~body()~ should be overridden when subclass ~T2TModel~
+- ~top()~ ~bottom()~ ~loss()~ should be overridden when declaring
+  new ~Modality~ in ~layers/modalities.py~
+
 From https://github.com/tensorflow/tensor2tensor/blob/master/docs/overview.md#building-the-model
 
 #+BEGIN_QUOTE
@@ -122,18 +179,33 @@ depending on the mode.
 A call of a ~T2TModel~ internally calls ~bottom~, ~body~, ~top~, and ~loss~, all
 of which can be overridden by subclasses (typically only ~body~ is).
 
+# sg: should be overridden in ~Modalities~. Those methods in
+# ~T2TModel~ internally call methods in ~Modalities~. ~T2TModel~
+# level methods also contains lots of computational logic
+
 The default implementations of ~bottom~, ~top~, and ~loss~ depend on the
 ~Modality~ specified for the input and target features (e.g.
 ~SymbolModality.bottom~ embeds integer tokens and ~SymbolModality.loss~ is
 ~softmax_cross_entropy~).
 #+END_QUOTE
 
+*** Embedding 
+
+- Embedding Size (Hidden Size / Input Length)
+  #+BEGIN_SRC python
+  # /utils/modality.py
+  def _body_input_length(self):
+    return self._model_hparams.hidden_size
+  #+END_SRC
+
+- Implementation
+  - ~SymbolModality~: ~simple_body()~ calls ~_get_weights()~
 
 ** Function Flow
 
-
-
 ~bottom~, ~top~, and ~loss~ are specified in ~hparams.problems~
+
+from ~features~ to ~logtis, losses~
 
 1. features flow into model: t2t_model.py
    ~T2TModel.estimator_model_fn()~ calls ~logits, losses_dict =
@@ -143,8 +215,11 @@ The default implementations of ~bottom~, ~top~, and ~loss~ depend on the
 3. ~T2TModel.call()~ calls ~model_fn_sharded(sharded_features)~
 4. ~model_fn_sharded()~ calls
    ~model_fn(datashard_to_features)~
-5. ~model_fn()~ calls ~bottom()~, ~body()~ ~top()~, and ~loss()~
-   in order
+5. ~model_fn()~ calls ~bottom()~, ~body()~ ~top()~ and ~loss()~
+   in order. ~bottom()~, ~top()~ and ~loss()~ are defined in
+   corresponding problems' ~def hparams()~ method which use
+   functions defined in ~layers/modalities.py~
+
    - ~body()~ can return ~losses~ or not 
      - If return, then it must contains ~(logits, losses)~ in a
        ~tuple~ then training will skip ~top()~ and ~loss()~
@@ -154,13 +229,34 @@ The default implementations of ~bottom~, ~top~, and ~loss~ depend on the
        ~model_fn()~ will use ~top()~ to calculate ~logits~ and
        ~loss()~ to calculate ~loss()~
 
+      #+BEGIN_QUOTE
+      ~t2t_model.py~ loss():
+      model_body must return a dictionary of logits when
+      problem_hparams.target_modality is a dict
+      #+END_QUOTE
 
+   - ~bottom()~: transform features to feed into body
+     - ~input~: embedding inputs
+     - ~output~: transformed features
+     - ~SymbolModality~
+       1. ensure 3D dimension of input feature ~x~
+       2. added dropout to input features ~x~
+       3. created weight matrix ~ret~ as embedding matrix
+       4. sampling ~ret~ using dropped out ~x~
 
+   - ~top()~: generating logits. ~body_output~ to ~logits~
+     - ~SymbolModality~ ~top()~: [batch, p0, p1, body_input_depth]
+       -> [batch, p0, p1, ?, vocab_size] ([batch, p0, p1, 1,
+       vocab_size] in small ptb)
 
+   - ~loss()~: Default in ~utils/modality.py~ ~loss(top_out,
+     targets)~ which uses ~softmax-cross-entropy~
+     - ~SymbolModality~ doesn't override this method, so it use
+       cross entropy as default
+     - Should be overridden when define new modality in ~layers/modality.py~
 
+6. ~return logtis, losses~ in ~model_fn()~
 
-
-loss
 
 ** Decoder Notes
 
@@ -190,3 +286,7 @@ No computational differences
   variable)
 - bias is different
 - decoder has layer cache but currently un-implemented
+** MISC
+
+problem.py spaceID? ZH_TOK = 16
+
