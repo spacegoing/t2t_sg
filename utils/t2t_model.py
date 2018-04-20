@@ -85,6 +85,7 @@ class T2TModel(base.Layer):
       a T2TModel
     """
     # Determine name first: use registered name if possible, class name else.
+    # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
     default_name = registry.default_name(type(self))
     name = self.REGISTERED_NAME or default_name
     super(T2TModel, self).__init__(
@@ -285,7 +286,7 @@ class T2TModel(base.Layer):
                  target_modality.name)
         transformed_features["targets"] = target_modality.targets_bottom(
             features["targets"])
-
+    # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
     for key in features:
       if key not in transformed_features:
         # For features without a modality, we pass them along as is

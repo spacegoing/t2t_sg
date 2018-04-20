@@ -141,6 +141,7 @@ class SymbolModality(modality.Modality):
       """
       if self._model_hparams.multiply_embedding_mode == "sqrt_depth":
         ret *= self._body_input_depth**0.5
+      # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
       ret *= tf.expand_dims(tf.to_float(tf.not_equal(x, 0)), -1)
       return ret # sg: (105,32,1,256)
 
@@ -184,7 +185,7 @@ class SymbolModality(modality.Modality):
       body_output_shape = common_layers.shape_list(body_output)
       var = self._get_weights(body_output_shape[-1])
       # sg: small ptb (10000, 256)
-      import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
+      # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
       if (self._model_hparams.factored_logits and
           self._model_hparams.mode == tf.estimator.ModeKeys.TRAIN):
         # insert channels dimension

@@ -188,7 +188,7 @@ class Transformer(t2t_model.T2TModel):
           hparams.expected_attention_loss_type,
           hparams.expected_attention_loss_multiplier)
       return decoder_output, {"attention_loss": attention_loss}
-
+    # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
     return decoder_output
 
   def _greedy_infer(self, features, decode_length):
@@ -792,6 +792,7 @@ def transformer_decoder(decoder_input,
       # cache is None
       with tf.variable_scope(layer_name):
         with tf.variable_scope("self_attention"):
+          # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
           y = common_attention.multihead_attention(
               common_layers.layer_preprocess(x, hparams),
               # normalize(x)

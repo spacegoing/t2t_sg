@@ -834,6 +834,7 @@ class Problem(object):
       tf.add_to_collection(tf.GraphKeys.QUEUE_RUNNERS,
                            data_reader.DummyQueueRunner())
 
+    # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
     return features, features["targets"]
 
   def serving_input_fn(self, hparams):
