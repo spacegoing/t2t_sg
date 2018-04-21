@@ -296,10 +296,12 @@ class Text2TextProblem(problem.Problem):
 
     if self.has_inputs:
       source_vocab_size = self._encoders["inputs"].vocab_size
+      # sg: define problem.input_modality
       p.input_modality = {
           "inputs": (registry.Modalities.SYMBOL, source_vocab_size)
       }
     target_vocab_size = self._encoders["targets"].vocab_size
+    # sg: define problem.target_modality
     p.target_modality = (registry.Modalities.SYMBOL, target_vocab_size)
     if self.vocab_type == VocabType.CHARACTER:
       p.loss_multiplier = 2.0

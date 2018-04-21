@@ -282,6 +282,7 @@ def _internal_get_modality(name, mod_collection, collection_str):
   if name not in mod_collection:
     raise LookupError("%s modality %s never registered." % (collection_str,
                                                             name))
+  # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
   return mod_collection[name]
 
 
@@ -418,9 +419,20 @@ def create_modality(modality_spec, model_hparams):
   if modality_type not in retrieval_fns:
     raise LookupError("Modality type %s not recognized. Options are: %s" %
                       (modality_type, list(_MODALITIES)))
+  """
+  sg: small ptb
+  (model_hparams, vocab_size) explanation:
 
+  retrieval_fns[modality_type](modality_name) will
+  return Symbol "default" which is `SymbolModality` defined in
+  `modalities.py`. This class inherited from `Modality` class,
+  and doesn't overide `__init__()` method
+
+  The `__init__(self, model_hparams, vocab_size=None)`
+  method take vocab_size
+
+  """
   return retrieval_fns[modality_type](modality_name)(model_hparams, vocab_size)
-
 
 def display_list_by_prefix(names_list, starting_spaces=0):
   """Creates a help string for names_list grouped by prefix."""

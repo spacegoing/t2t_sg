@@ -159,6 +159,7 @@ def create_experiment_fn():
       data_dir=os.path.expanduser(FLAGS.data_dir),
       train_steps=FLAGS.train_steps,
       eval_steps=FLAGS.eval_steps,
+      # below are logging settings (`validation_monitors` etc.)
       min_eval_frequency=FLAGS.local_eval_frequency,
       schedule=FLAGS.schedule,
       export=FLAGS.export_saved_model,

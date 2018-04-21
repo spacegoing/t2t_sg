@@ -69,6 +69,7 @@ def create_hparams(hparams_set,
                    data_dir=None,
                    problem_name=None):
   """Create HParams with data_dir and problem hparams, if kwargs provided."""
+  # sg: called in t2t_trainer.py main()
   hparams = registry.hparams(hparams_set)()
   if data_dir:
     hparams.add_hparam("data_dir", data_dir)

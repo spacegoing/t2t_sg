@@ -457,9 +457,17 @@ class T2TModel(base.Layer):
         if target_modality_name:
           _warn_changed_modality_type(target_modality_name, modality_spec[0],
                                       "target_modality/%s" % f)
+          # sg: to see if modality defined in `hparams`
+          # (`common_hparams.py`, `transfomer.py`) always override
+          # modality defined in `problem`
+          # import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
           modality_spec = (target_modality_name, modality_spec[1])
         target_modality[f] = registry.create_modality(modality_spec, hparams)
     else:
+      # sg: to see if modality defined in `hparams`
+      # (`common_hparams.py`, `transfomer.py`) always override
+      # modality defined in `problem`
+      import os, ipdb;ipdb.set_trace() if os.environ['t2tdbg'] else 0
       target_modality_spec = problem_hparams.target_modality
       if target_modality_name:
         _warn_changed_modality_type(target_modality_name,
