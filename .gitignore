@@ -1,3 +1,5 @@
+auto/
+*.tex
 # Compiled python modules.
 *.pyc
 
@@ -16,3 +18,4 @@ dist/
 # Sublime project files
 *.sublime-project
 *.sublime-workspace 
+/.DS_Store

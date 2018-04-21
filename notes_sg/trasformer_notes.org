@@ -21,52 +21,6 @@ vocab_type: (~text_problems.py vocab_type()~)
 #+END_QUOTE
 
 
-*** Problems base classes
-
-- blog: https://cloud.google.com/blog/big-data/2018/02/cloud-poetry-training-and-hyperparameter-tuning-custom-text-models-on-cloud-ml-engine
-
-1. Models that use a sequence as an input, but are essentially
-   classifiers or regressors—a spam filter or sentiment
-   identifier are canonical examples of such a model.
-2. Models that take a single entity as input but produce a text
-   sequence as output—image captioning is an example of such a
-   model, since given an image, the model needs to produce a
-   sequence of words that describes the image.
-3. Models that take sequences as input and produce sequences as
-   outputs. Language translation, question-answering, and text
-   summarization are all examples of this third type.
- 
-
-*** Modality (Not Interfaces)
-
-In ~SubclassProblem~ ~def hparams()~:
-(~text_problems.py~ ~Text2TextProblem~ as an example)
-
-#+BEGIN_SRC python
-  def hparams(self, defaults, unused_model_hparams):
-    p = defaults
-    p.stop_at_eos = int(True)
-
-    if self.has_inputs:
-      source_vocab_size = self._encoders["inputs"].vocab_size
-      p.input_modality = {
-          "inputs": (registry.Modalities.SYMBOL, source_vocab_size)
-      }
-    target_vocab_size = self._encoders["targets"].vocab_size
-    p.target_modality = (registry.Modalities.SYMBOL, target_vocab_size)
-    if self.vocab_type == VocabType.CHARACTER:
-      p.loss_multiplier = 2.0
-
-    if self.packed_length:
-      identity = (registry.Modalities.GENERIC, None)
-      if self.has_inputs:
-        p.input_modality["inputs_segmentation"] = identity
-        p.input_modality["inputs_position"] = identity
-      p.input_modality["targets_segmentation"] = identity
-      p.input_modality["targets_position"] = identity
-#+END_SRC
-
-
 *** Registry Gotcha
 
 - github: https://github.com/tensorflow/tensor2tensor/blob/master/docs/new_problem.md
@@ -105,6 +59,83 @@ Where:
 *** MISC
 
 
+
+
+
+** Problems base classes
+
+- blog: https://cloud.google.com/blog/big-data/2018/02/cloud-poetry-training-and-hyperparameter-tuning-custom-text-models-on-cloud-ml-engine
+
+1. Models that use a sequence as an input, but are essentially
+   classifiers or regressors—a spam filter or sentiment
+   identifier are canonical examples of such a model.
+2. Models that take a single entity as input but produce a text
+   sequence as output—image captioning is an example of such a
+   model, since given an image, the model needs to produce a
+   sequence of words that describes the image.
+3. Models that take sequences as input and produce sequences as
+   outputs. Language translation, question-answering, and text
+   summarization are all examples of this third type.
+ 
+
+** Modality (Not Interfaces)
+
+*** Definition
+
+~utils/modality.py~
+
+#+BEGIN_QUOTE markdown
+  An abstract class representing modalities for transforming data to a space
+  interpretable by T2T models. It has 4 functions:
+  * bottom: called on inputs entering the model.
+  * targets_bottom: called on targets entering the model (e.g., the decoder).
+  * top: called on model outputs to generate predictions (e.g., logits).
+  * loss: called on predictions (outputs of top) and targets.
+
+  For example, think about a modality for images:
+  * `bottom` represents the part of the model applied to an incoming image,
+    e.g., an entry flow of a convolutional network.
+  * `top` represents the top part of a model that is generating images, e.g., a
+    PixelCNN network.
+  * `targets_bottom` represents the auto-regressive part of the network.  It is
+    applied to the already-generated part of an image, which is given to the
+    decoder to generate the next part. In some cases, e.g., for text, it is the
+    same as the `bottom` function, and that is the default we use. But, e.g.,
+    for images, a different function might be needed to regress properly.
+  * `loss` would compare the generated image to the target image and score it.
+
+  All the functions have simple and sharded versions. A sub-class only needs to
+  implement the simple version, the default sharding will be used then.
+#+END_QUOTE
+
+
+*** Usage Example
+In ~SubclassProblem~ ~def hparams()~:
+(~text_problems.py~ ~Text2TextProblem~ as an example)
+
+#+BEGIN_SRC python
+  def hparams(self, defaults, unused_model_hparams):
+    p = defaults
+    p.stop_at_eos = int(True)
+
+    if self.has_inputs:
+      source_vocab_size = self._encoders["inputs"].vocab_size
+      p.input_modality = {
+          "inputs": (registry.Modalities.SYMBOL, source_vocab_size)
+      }
+    target_vocab_size = self._encoders["targets"].vocab_size
+    p.target_modality = (registry.Modalities.SYMBOL, target_vocab_size)
+    if self.vocab_type == VocabType.CHARACTER:
+      p.loss_multiplier = 2.0
+
+    if self.packed_length:
+      identity = (registry.Modalities.GENERIC, None)
+      if self.has_inputs:
+        p.input_modality["inputs_segmentation"] = identity
+        p.input_modality["inputs_position"] = identity
+      p.input_modality["targets_segmentation"] = identity
+      p.input_modality["targets_position"] = identity
+#+END_SRC
 
 
 ** Input Pipeline
@@ -146,6 +177,7 @@ be smaller.
 
 ** T2TModel
 
+*** Overview
 ~top()~ ~body()~ ~bottom()~ ~loss()~
 
 - ~body()~ should be overridden when subclass ~T2TModel~
@@ -189,6 +221,35 @@ The default implementations of ~bottom~, ~top~, and ~loss~ depend on the
 ~softmax_cross_entropy~).
 #+END_QUOTE
 
+
+*** hparams
+
+When subclass ~T2TModel~, there are many ~hparams~ defined in
+~layers/common_hparams.py~. ~transformer.py~ initiated
+~basic_params1()~ in that file.
+
+~hparams~ can also be overridden in subclasses.
+
+
+*** Decoder Notes
+
+- ~has_input=False~, no encoder
+
+
+**** Pre & Post Process
+
+For example, if sequence=="dna", then the output is
+~previous_value + normalize(dropout(x))~
+
+#+BEGIN_SRC python
+hparams.layer_preprocess_sequence = "n"
+# normalize(x)
+hparams.layer_postprocess_sequence = "da"
+# previous_value + dropout(x)
+#+END_SRC
+
+
+
 *** Embedding 
 
 - Embedding Size (Hidden Size / Input Length)
@@ -200,6 +261,31 @@ The default implementations of ~bottom~, ~top~, and ~loss~ depend on the
 
 - Implementation
   - ~SymbolModality~: ~simple_body()~ calls ~_get_weights()~
+
+
+
+** Estimator Funcs
+
+- Involves ~t2t_model~ ~subclass_T2TModel~ ~problem~ ~common_hparams~
+
+Estimator funcs related code & logic are mainly implemented in
+~utils/t2t_model.py~ ~estimator_model_fn()~ and ~?(eval_metrics etc)~
+
+*** Train
+- return ~train_op~ & ~loss~
+- optimizer: defined in ~hparams.optimizer~
+  - common hparams are defined in ~common_hparams.py~
+  - subclasses can overridden this hparam
+*** Eval
+- return ~predictions~ & ~eval_metric_ops~ & ~loss~
+- metrics: defined by ~problem.py (and subclasses)~
+  ~eval_metrics()~
+*** Predict
+- return ~predictions~
+- call ~self.infer()~ in which calls ~_greedy_infer()~ which
+  should be implemented in subclass. Otherwise a slower version
+  of ~infer()~ will be used
+
 
 ** Function Flow
 
@@ -258,24 +344,6 @@ from ~features~ to ~logtis, losses~
 6. ~return logtis, losses~ in ~model_fn()~
 
 
-** Decoder Notes
-
-- ~has_input=False~, no encoder
-
-
-*** Pre & Post Process
-
-For example, if sequence=="dna", then the output is
-~previous_value + normalize(dropout(x))~
-
-#+BEGIN_SRC python
-hparams.layer_preprocess_sequence = "n"
-# normalize(x)
-hparams.layer_postprocess_sequence = "da"
-# previous_value + dropout(x)
-#+END_SRC
-
-
 ** Encoder-Decoder Diffs
 
 *** self-attention
@@ -286,6 +354,8 @@ No computational differences
   variable)
 - bias is different
 - decoder has layer cache but currently un-implemented
+
+
 ** MISC
 
 problem.py spaceID? ZH_TOK = 16
