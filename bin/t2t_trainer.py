@@ -109,6 +109,9 @@ flags.DEFINE_integer("autotune_parallel_trials", 1,
 flags.DEFINE_string("job-dir", None,
                     "DO NOT USE. Exists only for Cloud ML Engine to pass in "
                     "during hyperparameter tuning. Overrides --output_dir.")
+# sg config below #############################################################
+flags.DEFINE_string("visible_gpus", None,
+                    "CUDA_VISIBLE_DEVICES")
 
 
 def get_problem_name():
@@ -317,6 +320,10 @@ def main(argv):
   trainer_lib.set_random_seed(FLAGS.random_seed)
   usr_dir.import_usr_dir(FLAGS.t2t_usr_dir)
   log_registry()
+
+  if FLAGS.visible_gpus:
+    import os
+    os.environ["CUDA_VISIBLE_DEVICES"]=FLAGS.visible_gpus
 
   if FLAGS.cloud_mlengine:
     return cloud_mlengine.launch()
