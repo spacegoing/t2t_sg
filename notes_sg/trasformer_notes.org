@@ -306,11 +306,13 @@ from ~features~ to ~logtis, losses~
    corresponding problems' ~def hparams()~ method which use
    functions defined in ~layers/modalities.py~
 
-   - ~body()~ can return ~losses~ or not 
+   - ~body()~ can return ~losses~ or not
      - If return, then it must contains ~(logits, losses)~ in a
-       ~tuple~ then training will skip ~top()~ and ~loss()~
-       functions. This means ~body()~ need to implement ~top()~
-       and ~loss()~ by itself
+       ~tuple~. And losses must be a ~dict~ that contains key
+       ~"training"~ in it. Then training will skip ~top()~ and
+       ~loss()~ functions. This means ~body()~ need to implement
+       ~top()~ and ~loss()~ by itself. The whole logic in
+       ~model_fn()~
      - Otherwise, it simply return ~logits~ as output. Then
        ~model_fn()~ will use ~top()~ to calculate ~logits~ and
        ~loss()~ to calculate ~loss()~
