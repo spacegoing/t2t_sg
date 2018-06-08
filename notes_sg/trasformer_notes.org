@@ -360,5 +360,26 @@ No computational differences
 
 ** MISC
 
+*** Multi-lingual
+
+See Github Issues:
+
+- https://github.com/tensorflow/tensor2tensor/issues/242
+- https://github.com/tensorflow/tensor2tensor/issues/429
+- https://github.com/tensorflow/tensor2tensor/issues/424
+- https://github.com/tensorflow/tensor2tensor/issues/111
+
+#+BEGIN_QUOTE
+problem.py _default_hparams()
+
+Identifiers used to tell the model which input/target space will
+be expected. For example, it can tell that we expect French as
+characters as output, or Spanish as sound. Spaces defined as
+constants in SpaceID class.
+
+input_space_id=SpaceID.GENERIC,
+target_space_id=SpaceID.GENERIC
+#+END_QUOTE
+
 problem.py spaceID? ZH_TOK = 16
 
